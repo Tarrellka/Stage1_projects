@@ -1,12 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/scanner_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/generator_screen.dart';
 
-// Глобальный уведомлятель для обновления истории при переключении вкладок
+// Глобальный уведомлятель для обновления истории
 final ValueNotifier<int> historyUpdateNotifier = ValueNotifier<int>(0);
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    // Читаем параметры базы из db.txt
+    final dbContent = await rootBundle.loadString('assets/db.txt');
+    final dbLines = dbContent.split('\n').map((e) => e.trim()).where((s) => s.isNotEmpty).toList();
+
+    if (dbLines.length >= 2) {
+      await Supabase.initialize(
+        url: dbLines[0],      // Первая строка: URL Supabase
+        anonKey: dbLines[1],  // Вторая строка: Anon Key
+      );
+      print("БАЗА ДАННЫХ: Подключено успешно");
+    } else {
+      print("ОШИБКА: В assets/db.txt должно быть 2 строки (URL и Key)");
+    }
+  } catch (e) {
+    print("ОШИБКА ИНИЦИАЛИЗАЦИИ БД: $e");
+  }
+
   runApp(const QRCodeScannerApp());
 }
 
@@ -38,7 +60,6 @@ class MainHolder extends StatefulWidget {
 class _MainHolderState extends State<MainHolder> {
   int _selectedIndex = 0;
 
-  // Список всех экранов приложения
   final List<Widget> _screens = [
     const ScannerScreen(),
     const GeneratorScreen(),
@@ -48,7 +69,6 @@ class _MainHolderState extends State<MainHolder> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // IndexedStack сохраняет состояние страниц (камера не выключается при переходе)
       body: IndexedStack(
         index: _selectedIndex,
         children: _screens,
@@ -59,9 +79,6 @@ class _MainHolderState extends State<MainHolder> {
           setState(() {
             _selectedIndex = index;
           });
-          
-          // Если переходим на вкладку Истории (теперь она под индексом 2),
-          // отправляем сигнал на обновление данных
           if (index == 2) {
             historyUpdateNotifier.value++;
           }

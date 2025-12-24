@@ -1,0 +1,2 @@
+https://api.mistral.ai/v1/chat/completions
+ISdWrNRM4DsCg1s0nuttEqFWmakEk5V8

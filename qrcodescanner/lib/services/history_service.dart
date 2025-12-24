@@ -1,35 +1,79 @@
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import 'dart:async';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 
 class HistoryService {
-  static const String _key = 'scan_history';
+  static final _supabase = Supabase.instance.client;
 
-  // Сохранить новый скан
-  static Future<void> saveScan(String content, String aiAnalysis) async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> history = prefs.getStringList(_key) ?? [];
-    
-    // Создаем запись: контент, анализ и дата
-    Map<String, String> newEntry = {
-      'content': content,
-      'analysis': aiAnalysis,
-      'date': DateTime.now().toString().substring(0, 16), // ГГГГ-ММ-ДД ЧЧ:ММ
-    };
-    
-    history.insert(0, jsonEncode(newEntry)); // Новые всегда сверху
-    await prefs.setStringList(_key, history);
+
+  static Future<void> addRecord(String rawData, String aiVerdict, {int retries = 3}) async {
+    if (rawData.isEmpty || aiVerdict.isEmpty) return;
+
+    int attempt = 0;
+    while (attempt < retries) {
+      try {
+        await _supabase.from('scan_history').insert({
+          'raw_data': rawData,
+          'ai_verdict': aiVerdict,
+        });
+        return; 
+      } catch (e) {
+        attempt++;
+        debugPrint("Ошибка сохранения (попытка $attempt): $e");
+        if (attempt >= retries) break;
+        await Future.delayed(Duration(seconds: 1 * attempt)); 
+      }
+    }
   }
 
-  // Получить всю историю
-  static Future<List<Map<String, dynamic>>> getHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> history = prefs.getStringList(_key) ?? [];
-    return history.map((e) => jsonDecode(e) as Map<String, dynamic>).toList();
+
+  static Future<List<Map<String, dynamic>>> getHistory({int retries = 2}) async {
+    int attempt = 0;
+    while (attempt < retries) {
+      try {
+        final List<dynamic> response = await _supabase
+            .from('scan_history')
+            .select()
+            .order('created_at', ascending: false)
+            .limit(50);
+
+
+        return _validateHistoryList(response);
+
+      } catch (e) {
+        attempt++;
+        debugPrint("Ошибка загрузки истории (попытка $attempt): $e");
+        if (attempt >= retries) break;
+        await Future.delayed(const Duration(seconds: 2));
+      }
+    }
+    return [];
   }
 
-  // Очистить историю
-  static Future<void> clearHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_key);
+
+  static List<Map<String, dynamic>> _validateHistoryList(List<dynamic> data) {
+    final List<Map<String, dynamic>> validRecords = [];
+    
+    for (var item in data) {
+
+      if (item is Map<String, dynamic> &&
+          item.containsKey('raw_data') &&
+          item.containsKey('ai_verdict') &&
+          item['ai_verdict'] is String) {
+        validRecords.add(item);
+      }
+    }
+    return validRecords;
+  }
+
+
+  static Future<bool> clearHistory() async {
+    try {
+      await _supabase.from('scan_history').delete().neq('raw_data', '');
+      return true;
+    } catch (e) {
+      debugPrint("Ошибка удаления истории: $e");
+      return false;
+    }
   }
 }

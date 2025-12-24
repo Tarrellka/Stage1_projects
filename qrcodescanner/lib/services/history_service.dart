@@ -3,8 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 
 class HistoryService {
-  static final _supabase = Supabase.instance.client;
-
+  // Используем геттер, чтобы клиент запрашивался только после инициализации в main
+  static SupabaseClient get _supabase => Supabase.instance.client;
 
   static Future<void> addRecord(String rawData, String aiVerdict, {int retries = 3}) async {
     if (rawData.isEmpty || aiVerdict.isEmpty) return;
@@ -26,20 +26,17 @@ class HistoryService {
     }
   }
 
-
   static Future<List<Map<String, dynamic>>> getHistory({int retries = 2}) async {
     int attempt = 0;
     while (attempt < retries) {
       try {
-        final List<dynamic> response = await _supabase
+        final response = await _supabase
             .from('scan_history')
             .select()
             .order('created_at', ascending: false)
             .limit(50);
 
-
-        return _validateHistoryList(response);
-
+        return _validateHistoryList(response as List<dynamic>);
       } catch (e) {
         attempt++;
         debugPrint("Ошибка загрузки истории (попытка $attempt): $e");
@@ -50,22 +47,17 @@ class HistoryService {
     return [];
   }
 
-
   static List<Map<String, dynamic>> _validateHistoryList(List<dynamic> data) {
     final List<Map<String, dynamic>> validRecords = [];
-    
     for (var item in data) {
-
       if (item is Map<String, dynamic> &&
           item.containsKey('raw_data') &&
-          item.containsKey('ai_verdict') &&
-          item['ai_verdict'] is String) {
+          item.containsKey('ai_verdict')) {
         validRecords.add(item);
       }
     }
     return validRecords;
   }
-
 
   static Future<bool> clearHistory() async {
     try {

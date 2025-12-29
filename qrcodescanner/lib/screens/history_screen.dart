@@ -1,138 +1,97 @@
 import 'package:flutter/material.dart';
-import '../services/history_service.dart';
-import '../main.dart'; 
+import '/l10n/app_localizations.dart';
+import '../services/database_service.dart';
+import '../models/task_models.dart'; 
+import 'package:intl/intl.dart';
 
-class HistoryScreen extends StatefulWidget {
+class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
 
   @override
-  State<HistoryScreen> createState() => _HistoryScreenState();
-}
-
-class _HistoryScreenState extends State<HistoryScreen> {
-  List<Map<String, dynamic>> _history = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadHistory();
-    historyUpdateNotifier.addListener(_loadHistory);
-  }
-
-  @override
-  void dispose() {
-    historyUpdateNotifier.removeListener(_loadHistory);
-    super.dispose();
-  }
-
-  Future<void> _loadHistory() async {
-    if (!mounted) return;
-    setState(() => _isLoading = true);
-    
-    final data = await HistoryService.getHistory();
-    
-    if (mounted) {
-      setState(() {
-        _history = data;
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final DatabaseService _db = DatabaseService();
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("История сканирований"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_sweep),
-            onPressed: () async {
-              final confirmed = await _showDeleteConfirm();
-              if (confirmed == true) {
-                await HistoryService.clearHistory();
-                _loadHistory();
-              }
-            },
-          )
-        ],
+        title: Text(l10n.historyScreenTitle),
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : _history.isEmpty
-          ? const Center(child: Text("История пуста"))
-          : ListView.builder(
-              itemCount: _history.length,
-              itemBuilder: (context, index) {
-                final item = _history[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  child: ListTile(
-                    leading: const Icon(Icons.qr_code_2),
-                    title: Text(
-                      item['raw_data'] ?? "Нет данных", 
-                      maxLines: 1, 
-                      overflow: TextOverflow.ellipsis
-                    ),
-                    subtitle: Text(
-                      item['ai_verdict'] ?? "Анализ отсутствует", 
-                      maxLines: 2, 
-                      overflow: TextOverflow.ellipsis
-                    ),
-                    onTap: () => _showDetails(item),
+      body: StreamBuilder<List<ScanModel>>(
+        stream: _db.historyStream,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text("${l10n.errorAnalysis}: ${snapshot.error}"));
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(child: Text(l10n.historyEmpty));
+          }
+
+          final history = snapshot.data!;
+
+          return ListView.builder(
+            itemCount: history.length,
+            padding: const EdgeInsets.all(12),
+            itemBuilder: (context, index) {
+              final scan = history[index];
+              return Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 10),
+                child: ListTile(
+                  leading: const Icon(Icons.qr_code_2, color: Colors.deepPurple),
+                  title: Text(scan.rawData, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(
+                    DateFormat('dd.MM.yyyy HH:mm').format(scan.timestamp),
+                    style: const TextStyle(fontSize: 12),
                   ),
-                );
-              },
-            ),
-    );
-  }
-
-  Future<bool?> _showDeleteConfirm() {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Очистить историю?"),
-        content: const Text("Это действие нельзя будет отменить."),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Отмена")),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Удалить", style: TextStyle(color: Colors.red))),
-        ],
+                  onTap: () {
+                    _showDetails(context, scan, l10n);
+                  },
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
 
-  void _showDetails(Map<String, dynamic> item) {
+  void _showDetails(BuildContext context, ScanModel scan, AppLocalizations l10n) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Данные QR:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 5),
-            SelectableText(item['raw_data'] ?? ""),
-            const Divider(height: 30),
-            const Text("Вердикт ИИ:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 5),
-            SizedBox(
-              height: 200,
-              child: SingleChildScrollView(child: SelectableText(item['ai_verdict'] ?? "")),
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.4,
+          minChildSize: 0.2,
+          maxChildSize: 0.8,
+          expand: false,
+          builder: (_, scrollController) => SingleChildScrollView(
+            controller: scrollController,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.aiAnalysisTitle,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  scan.aiAnalysis.isEmpty ? l10n.noAnalysis : scan.aiAnalysis,
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 20),
+              ],
             ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Закрыть"),
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
+          ),
         ),
       ),
     );

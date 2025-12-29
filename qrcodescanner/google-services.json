@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "427300255576",
+    "project_id": "qrscannerapp-1e10b",
+    "storage_bucket": "qrscannerapp-1e10b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:427300255576:android:d8130e35fc0ff69446572d",
+        "android_client_info": {
+          "package_name": "com.example.qrcodescanner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAMt6naezNWPn5EV6q8fpbr16yuXSTRyd8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

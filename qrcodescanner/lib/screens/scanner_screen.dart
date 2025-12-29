@@ -1,125 +1,194 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:provider/provider.dart';
 import '../controllers/scanner_controller.dart';
+import '../l10n/app_localizations.dart';
+import '../services/subscription_service.dart';
+import 'paywall_screen.dart';
 
-class ScannerScreen extends StatefulWidget {
+class ScannerScreen extends StatelessWidget {
   const ScannerScreen({super.key});
 
   @override
-  State<ScannerScreen> createState() => _ScannerScreenState();
-}
-
-class _ScannerScreenState extends State<ScannerScreen> {
-  late ScannerController _logic;
-
-  @override
-  void initState() {
-    super.initState();
-    _logic = ScannerController();
-    _logic.addListener(() { if (mounted) setState(() {}); });
-  }
-
-  @override
-  void dispose() {
-    _logic.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          // ВЕРХНЯЯ ЧАСТЬ: КАМЕРА
-          Expanded(
-            flex: 3,
-            child: Stack(
+    final l10n = AppLocalizations.of(context);
+    final double screenWidth = MediaQuery.of(context).size.width;
+
+    return ChangeNotifierProvider(
+      create: (_) => ScannerController(),
+      child: Consumer<ScannerController>(
+        builder: (context, controller, _) {
+          final bool hasResult = controller.rawCode.isNotEmpty;
+
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: Column(
               children: [
-                MobileScanner(
-                  controller: _logic.cameraController,
-                  onDetect: _logic.onDetect,
-                ),
-                // Кнопка Галереи
-                Positioned(
-                  top: 50,
-                  right: 20,
-                  child: FloatingActionButton.small(
-                    backgroundColor: Colors.black54,
-                    onPressed: () => _logic.scanImageFromGallery(context),
-                    child: const Icon(Icons.photo_library, color: Colors.white),
-                  ),
-                ),
-                // Заглушка при успехе
-                if (_logic.isAnalyzing || _logic.aiResult != "Наведите камеру на QR-код")
-                  Container(
-                    color: Colors.black87,
-                    child: const Center(
-                      child: Icon(Icons.qr_code_2, color: Colors.deepPurpleAccent, size: 100),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          
-          // НИЖНЯЯ ЧАСТЬ: ИНФОРМАЦИЯ
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // ВЕРХНЯЯ ЧАСТЬ: СКАНЕР
+                Expanded(
+                  flex: 3,
+                  child: Stack(
+                    alignment: Alignment.center,
                     children: [
-                      const Text("AI Анализ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                      Row(
-                        children: [
-                          if (_logic.rawCode.isNotEmpty)
-                            IconButton(
-                              icon: const Icon(Icons.link),
-                              onPressed: () => _logic.copy(context, _logic.rawCode, "Данные QR скопированы"),
-                            ),
-                          if (!_logic.isAnalyzing && _logic.aiResult.length > 10)
-                            IconButton(
-                              icon: const Icon(Icons.copy_all),
-                              onPressed: () => _logic.copy(context, _logic.aiResult, "Анализ скопирован"),
-                            ),
-                        ],
+                      MobileScanner(
+                        controller: controller.cameraController,
+                        onDetect: (capture) => controller.onDetect(capture, context),
                       ),
+                      
+                      // Рамка сканера
+                      if (!controller.isAnalyzing && !hasResult)
+                        _buildScannerOverlay(screenWidth * 0.7),
+
+                      // Кнопки управления поверх камеры
+                      _buildTopButtons(context),
+
+                      // Оверлей загрузки при работе ИИ
+                      if (controller.isAnalyzing)
+                        _buildLoadingOverlay(l10n?.analyzingSafety ?? "Analyzing..."),
                     ],
                   ),
-                  const Divider(),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Text(
-                        _logic.aiResult,
-                        style: TextStyle(color: Colors.grey[800], fontSize: 15),
-                      ),
-                    ),
+                ),
+                
+                // НИЖНЯЯ ЧАСТЬ: ПАНЕЛЬ РЕЗУЛЬТАТОВ
+                Expanded(
+                  flex: 2,
+                  child: _buildInfoPanel(context, controller, l10n, hasResult),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // Кнопки Корона и Галерея
+  Widget _buildTopButtons(BuildContext context) {
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 10,
+      left: 20,
+      right: 20,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Кнопка перехода на Paywall
+          Consumer<SubscriptionService>(
+            builder: (context, sub, _) {
+              if (sub.isPremium) return const SizedBox.shrink();
+              return CircleAvatar(
+                backgroundColor: Colors.black54,
+                child: IconButton(
+                  icon: const Icon(Icons.workspace_premium, color: Colors.amber),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PaywallScreen()),
                   ),
-                  if (!_logic.isAnalyzing && _logic.aiResult != "Наведите камеру на QR-код")
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 50),
-                          backgroundColor: Colors.deepPurple,
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: _logic.reset,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text("Сканировать еще"),
-                      ),
-                    ),
-                ],
-              ),
+                ),
+              );
+            },
+          ),
+
+          // Кнопка выбора фото из галереи
+          CircleAvatar(
+            backgroundColor: Colors.black54,
+            child: IconButton(
+              icon: const Icon(Icons.photo_library, color: Colors.white),
+              onPressed: () {
+                final controller = Provider.of<ScannerController>(context, listen: false);
+                controller.scanImageFromGallery(context);
+              },
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInfoPanel(BuildContext context, ScannerController controller, AppLocalizations? l10n, bool hasResult) {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    l10n?.aiAnalysisTitle ?? "AI Analysis",
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                  ),
+                  if (hasResult && !controller.isAnalyzing)
+                    IconButton(
+                      icon: const Icon(Icons.copy, color: Colors.deepPurple),
+                      onPressed: () => controller.copy(context, controller.rawCode),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Divider(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Text(
+                    !hasResult 
+                        ? (l10n?.scanStatusInitial ?? "Point camera at a code") 
+                        : (l10n?.codeDetected(controller.rawCode) ?? controller.rawCode), 
+                    style: TextStyle(color: Colors.grey[850], fontSize: 16, height: 1.5),
+                  ),
+                ),
+              ),
+              if (!controller.isAnalyzing && hasResult)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 55),
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    ),
+                    onPressed: () => controller.reset(context),
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: Text(l10n?.scanAgainButton ?? "Scan Again"),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScannerOverlay(double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.white54, width: 2),
+        borderRadius: BorderRadius.circular(20),
+      ),
+    );
+  }
+
+  Widget _buildLoadingOverlay(String message) {
+    return Container(
+      color: Colors.black87,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(color: Colors.deepPurpleAccent),
+            const SizedBox(height: 20),
+            Text(message, style: const TextStyle(color: Colors.white)),
+          ],
+        ),
       ),
     );
   }

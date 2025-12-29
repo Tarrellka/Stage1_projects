@@ -2,85 +2,99 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_picker/image_picker.dart';
-import '../services/ai_service.dart';
-import '../main.dart'; 
+import '/l10n/app_localizations.dart'; 
+import '../screens/result_screen.dart'; 
 
 class ScannerController extends ChangeNotifier {
-  String aiResult = "Наведите камеру на QR-код";
+  final MobileScannerController cameraController = MobileScannerController();
+  
   String rawCode = "";
   bool isAnalyzing = false;
-  final MobileScannerController cameraController = MobileScannerController();
 
-  // Сканирование через камеру
-  Future<void> onDetect(BarcodeCapture capture) async {
-    final List<Barcode> barcodes = capture.barcodes;
-    if (barcodes.isNotEmpty && !isAnalyzing) {
-      final String code = barcodes.first.rawValue ?? "";
-      if (code.isEmpty) return;
-      _processCode(code);
+  void onDetect(BarcodeCapture capture, BuildContext context) async {
+    if (isAnalyzing || rawCode.isNotEmpty) return;
+
+    final barcode = capture.barcodes.firstOrNull;
+    if (barcode != null && barcode.rawValue != null) {
+      isAnalyzing = true;
+      rawCode = barcode.rawValue!;
+      notifyListeners();
+
+      await cameraController.stop(); 
+      
+      if (context.mounted) {
+        _navigateToResult(context, rawCode);
+      }
     }
   }
 
-  // Сканирование из галереи
   Future<void> scanImageFromGallery(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
     if (image != null) {
       isAnalyzing = true;
-      aiResult = "Читаю изображение...";
       notifyListeners();
-
+      
       try {
         final BarcodeCapture? capture = await cameraController.analyzeImage(image.path);
+        
+        isAnalyzing = false;
         if (capture != null && capture.barcodes.isNotEmpty) {
-          _processCode(capture.barcodes.first.rawValue ?? "");
+          rawCode = capture.barcodes.first.rawValue ?? "";
+          if (rawCode.isNotEmpty && context.mounted) {
+            _navigateToResult(context, rawCode);
+          }
         } else {
-          aiResult = "QR-код не найден на фото";
-          isAnalyzing = false;
-          notifyListeners();
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l10n.noQrFound)), // "QR-код не найден на фото"
+            );
+          }
         }
       } catch (e) {
-        aiResult = "Ошибка при чтении файла";
         isAnalyzing = false;
-        notifyListeners();
+        debugPrint("Gallery scan error: $e");
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.errorReadingFile)), // "Ошибка при чтении файла"
+          );
+        }
       }
+      notifyListeners();
     }
   }
 
-  // Общая логика обработки и отправки в AI
-  Future<void> _processCode(String code) async {
-    isAnalyzing = true;
-    rawCode = code;
-    aiResult = "Анализирую безопасность...";
-    notifyListeners();
-
-    await cameraController.stop();
-    
-    try {
-      aiResult = await AIService.analyzeQRCode(code);
-      historyUpdateNotifier.value++; // Обновляем вкладку истории
-    } catch (e) {
-      aiResult = "Ошибка анализа. Проверьте интернет.";
-    }
-
-    isAnalyzing = false;
-    notifyListeners();
-  }
-
-  Future<void> reset() async {
-    aiResult = "Наведите камеру на QR-код";
-    rawCode = "";
-    isAnalyzing = false;
-    notifyListeners();
-    await cameraController.start();
-  }
-
-  void copy(BuildContext context, String text, String msg) {
+  void copy(BuildContext context, String text) {
+    final l10n = AppLocalizations.of(context)!;
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), duration: const Duration(seconds: 1)),
+      SnackBar(
+        content: Text(l10n.copyDataMessage), // "Данные QR скопированы"
+        duration: const Duration(seconds: 2),
+      ),
     );
+  }
+
+  void reset(BuildContext context) async {
+    rawCode = "";
+    isAnalyzing = false;
+    await cameraController.start();
+    notifyListeners();
+  }
+
+  void _navigateToResult(BuildContext context, String code) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ResultScreen(code: code),
+      ),
+    ).then((_) {
+      if (context.mounted) {
+        reset(context);
+      }
+    });
   }
 
   @override

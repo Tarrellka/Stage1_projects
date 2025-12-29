@@ -1,98 +1,98 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:screenshot/screenshot.dart';
-import 'package:gal/gal.dart';
-import 'dart:typed_data';
+import 'package:provider/provider.dart';
+import '../controllers/generator_controller.dart';
+import '../l10n/app_localizations.dart';
 
-class GeneratorScreen extends StatefulWidget {
+class GeneratorScreen extends StatelessWidget {
   const GeneratorScreen({super.key});
 
   @override
-  State<GeneratorScreen> createState() => _GeneratorScreenState();
-}
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final double screenWidth = MediaQuery.of(context).size.width;
 
-class _GeneratorScreenState extends State<GeneratorScreen> {
-  final TextEditingController _textController = TextEditingController();
-  final ScreenshotController _screenshotController = ScreenshotController();
-  String _qrData = "";
-
-  Future<void> _saveQrCode() async {
-    try {
-      // Захватываем виджет в байты (PNG)
-      final Uint8List? image = await _screenshotController.capture();
-      
-      if (image != null) {
-        // Сохраняем напрямую в галерею
-        await Gal.putImageBytes(image);
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("QR-код сохранен в галерею!")),
+    return ChangeNotifierProvider(
+      create: (_) => GeneratorController(),
+      child: Consumer<GeneratorController>(
+        builder: (context, controller, _) {
+          return Scaffold(
+            appBar: AppBar(title: Text(l10n.generatorTitle)),
+            body: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: controller.textController,
+                      decoration: InputDecoration(
+                        labelText: l10n.generatorInputLabel,
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.link),
+                      ),
+                      onChanged: controller.updateData,
+                    ),
+                    const SizedBox(height: 40),
+                    if (controller.qrData.isNotEmpty)
+                      _buildQrPreview(context, controller, l10n, screenWidth)
+                    else
+                      _buildPlaceholder(context, l10n),
+                  ],
+                ),
+              ),
+            ),
           );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Ошибка при сохранении")),
-        );
-      }
-    }
+        },
+      ),
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Создать QR")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _textController,
-              decoration: const InputDecoration(
-                labelText: "Введите текст или ссылку",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.link),
-              ),
-              onChanged: (value) => setState(() => _qrData = value),
+  Widget _buildQrPreview(BuildContext context, GeneratorController controller, AppLocalizations l10n, double width) {
+    return Column(
+      children: [
+        Screenshot(
+          controller: controller.screenshotController,
+          child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(16),
+            child: QrImageView(
+              data: controller.qrData,
+              version: QrVersions.auto,
+              size: width * 0.5,
             ),
-            const SizedBox(height: 30),
-            if (_qrData.isNotEmpty)
-              Column(
-                children: [
-                  // Оборачиваем QR в Screenshot для захвата
-                  Screenshot(
-                    controller: _screenshotController,
-                    child: Container(
-                      color: Colors.white,
-                      padding: const EdgeInsets.all(10),
-                      child: QrImageView(
-                        data: _qrData,
-                        version: QrVersions.auto,
-                        size: 200.0,
-                        gapless: false,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  ElevatedButton.icon(
-                    onPressed: _saveQrCode,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                    ),
-                    icon: const Icon(Icons.download),
-                    label: const Text("Сохранить в галерею"),
-                  ),
-                ],
-              )
-            else
-              const Center(
-                heightFactor: 5,
-                child: Text("Введите данные для генерации"),
-              ),
-          ],
+          ),
         ),
+        const SizedBox(height: 40),
+        ElevatedButton.icon(
+          onPressed: () async {
+            final success = await controller.saveQrCode();
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(success ? l10n.saveSuccess : l10n.saveError)),
+              );
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size(double.infinity, 55),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          icon: const Icon(Icons.download),
+          label: Text(l10n.saveToGallery),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlaceholder(BuildContext context, AppLocalizations l10n) {
+    return Padding(
+      padding: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.15),
+      child: Column(
+        children: [
+          Icon(Icons.qr_code_2, size: 100, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text(l10n.generatorPlaceholder, style: TextStyle(color: Colors.grey[500])),
+        ],
       ),
     );
   }

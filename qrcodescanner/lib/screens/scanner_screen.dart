@@ -35,14 +35,11 @@ class ScannerScreen extends StatelessWidget {
                         onDetect: (capture) => controller.onDetect(capture, context),
                       ),
                       
-                      // Рамка сканера
                       if (!controller.isAnalyzing && !hasResult)
                         _buildScannerOverlay(screenWidth * 0.7),
 
-                      // Кнопки управления поверх камеры
                       _buildTopButtons(context),
 
-                      // Оверлей загрузки при работе ИИ
                       if (controller.isAnalyzing)
                         _buildLoadingOverlay(l10n?.analyzingSafety ?? "Analyzing..."),
                     ],
@@ -62,7 +59,6 @@ class ScannerScreen extends StatelessWidget {
     );
   }
 
-  // Кнопки Корона и Галерея
   Widget _buildTopButtons(BuildContext context) {
     return Positioned(
       top: MediaQuery.of(context).padding.top + 10,
@@ -71,7 +67,6 @@ class ScannerScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Кнопка перехода на Paywall
           Consumer<SubscriptionService>(
             builder: (context, sub, _) {
               if (sub.isPremium) return const SizedBox.shrink();
@@ -88,7 +83,6 @@ class ScannerScreen extends StatelessWidget {
             },
           ),
 
-          // Кнопка выбора фото из галереи
           CircleAvatar(
             backgroundColor: Colors.black54,
             child: IconButton(

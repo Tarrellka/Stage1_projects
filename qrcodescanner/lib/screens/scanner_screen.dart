@@ -171,6 +171,8 @@ class ScannerScreen extends StatelessWidget {
     );
   }
 
+  
+
   Widget _buildLoadingOverlay(String message) {
     return Container(
       color: Colors.black87,

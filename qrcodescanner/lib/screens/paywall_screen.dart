@@ -2,9 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '/l10n/app_localizations.dart'; 
 import '../services/subscription_service.dart';
+import '../services/analytics_service.dart';
 
-class PaywallScreen extends StatelessWidget {
+class PaywallScreen extends StatefulWidget {
   const PaywallScreen({super.key});
+
+  @override
+  State<PaywallScreen> createState() => _PaywallScreenState();
+}
+
+class _PaywallScreenState extends State<PaywallScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // ТРЕКИНГ: Просмотр экрана оплаты
+    AnalyticsService.logEvent('paywall_viewed');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +31,10 @@ class PaywallScreen extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            AnalyticsService.logEvent('paywall_closed');
+            Navigator.pop(context);
+          },
         ),
       ),
       body: subService.isLoading 
@@ -51,8 +67,7 @@ class PaywallScreen extends StatelessWidget {
 
                   ...subService.products.map((product) {
                     final String title = product.name ?? product.productId;
-                    
-                    final String price = product.skProduct?.price.toString() ?? l10n.upgrade;
+                    final String priceText = product.skProduct?.price.toString() ?? l10n.upgrade;
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -60,9 +75,27 @@ class PaywallScreen extends StatelessWidget {
                         color: Colors.transparent,
                         child: InkWell(
                           onTap: () async {
+                            // ТРЕКИНГ: Клик по кнопке покупки
+                            AnalyticsService.logEvent('paywall_click_buy', {
+                              'product_id': product.productId,
+                              'price': product.skProduct?.price.toString() ?? 'unknown'
+                            });
+
                             final success = await subService.purchaseProduct(product.productId);
+                            
                             if (success && context.mounted) {
+                              // ТРЕКИНГ: Успешная транзакция
+                              AnalyticsService.logPurchase(
+                                product.productId, 
+                                product.skProduct?.price.toDouble() ?? 0.0, 
+                                product.skProduct?.priceLocale.currencyCode ?? 'USD'
+                              );
                               Navigator.pop(context);
+                            } else {
+                              // ТРЕКИНГ: Ошибка или отмена покупки
+                              AnalyticsService.logEvent('paywall_purchase_failed', {
+                                'product_id': product.productId
+                              });
                             }
                           },
                           borderRadius: BorderRadius.circular(16),
@@ -83,7 +116,7 @@ class PaywallScreen extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  price,
+                                  priceText,
                                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.deepPurple),
                                 ),
                               ],
@@ -96,7 +129,10 @@ class PaywallScreen extends StatelessWidget {
 
                   const Spacer(),
                   TextButton(
-                    onPressed: () => subService.restore(),
+                    onPressed: () {
+                      AnalyticsService.logEvent('paywall_restore_clicked');
+                      subService.restore();
+                    },
                     child: Text(
                       l10n.restore_purchases, 
                       style: const TextStyle(color: Colors.grey),

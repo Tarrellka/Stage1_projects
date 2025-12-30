@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/analytics_service.dart';
 import '/l10n/app_localizations.dart'; 
 import '../screens/result_screen.dart'; 
+import 'package:flutter/services.dart';
 
 class ScannerController extends ChangeNotifier {
   final MobileScannerController cameraController = MobileScannerController();
-  
   String rawCode = "";
   bool isAnalyzing = false;
 
@@ -18,13 +18,12 @@ class ScannerController extends ChangeNotifier {
     if (barcode != null && barcode.rawValue != null) {
       isAnalyzing = true;
       rawCode = barcode.rawValue!;
-      notifyListeners();
-
-      await cameraController.stop(); 
       
-      if (context.mounted) {
-        _navigateToResult(context, rawCode);
-      }
+      AnalyticsService.logEvent("qr_scan_success", {"source": "camera", "format": barcode.format.name});
+      
+      notifyListeners();
+      await cameraController.stop(); 
+      if (context.mounted) _navigateToResult(context, rawCode);
     }
   }
 
@@ -36,31 +35,23 @@ class ScannerController extends ChangeNotifier {
     if (image != null) {
       isAnalyzing = true;
       notifyListeners();
-      
+      AnalyticsService.logEvent("qr_scan_gallery_attempt");
+
       try {
         final BarcodeCapture? capture = await cameraController.analyzeImage(image.path);
-        
         isAnalyzing = false;
         if (capture != null && capture.barcodes.isNotEmpty) {
           rawCode = capture.barcodes.first.rawValue ?? "";
-          if (rawCode.isNotEmpty && context.mounted) {
-            _navigateToResult(context, rawCode);
-          }
+          AnalyticsService.logEvent("qr_scan_success", {"source": "gallery"});
+          if (rawCode.isNotEmpty && context.mounted) _navigateToResult(context, rawCode);
         } else {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l10n.noQrFound)), // "QR-код не найден на фото"
-            );
-          }
+          AnalyticsService.logEvent("qr_scan_failed", {"reason": "no_code_found"});
+          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.noQrFound)));
         }
       } catch (e) {
         isAnalyzing = false;
-        debugPrint("Gallery scan error: $e");
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.errorReadingFile)), // "Ошибка при чтении файла"
-          );
-        }
+        AnalyticsService.logEvent("qr_scan_error", {"error": e.toString()});
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.errorReadingFile)));
       }
       notifyListeners();
     }
@@ -71,10 +62,11 @@ class ScannerController extends ChangeNotifier {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(l10n.copyDataMessage), // "Данные QR скопированы"
+        content: Text(l10n.copyDataMessage),
         duration: const Duration(seconds: 2),
       ),
     );
+    AnalyticsService.logEvent("qr_scan_copy_clicked");
   }
 
   void reset(BuildContext context) async {
@@ -85,18 +77,11 @@ class ScannerController extends ChangeNotifier {
   }
 
   void _navigateToResult(BuildContext context, String code) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ResultScreen(code: code),
-      ),
-    ).then((_) {
-      if (context.mounted) {
-        reset(context);
-      }
+    Navigator.push(context, MaterialPageRoute(builder: (context) => ResultScreen(code: code))).then((_) {
+      if (context.mounted) reset(context);
     });
   }
-
+  
   @override
   void dispose() {
     cameraController.dispose();

@@ -1,2 +1,1 @@
-https://api.mistral.ai/v1/chat/completions
-ISdWrNRM4DsCg1s0nuttEqFWmakEk5V8
+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

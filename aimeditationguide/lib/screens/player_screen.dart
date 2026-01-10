@@ -70,7 +70,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   String _formatTime(int s) => "${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}";
 
-  // Метод для перевода названий звуков
   String _translateSoundName(String id, AppLocalizations l10n) {
     switch (id.toLowerCase()) {
       case 'none': return l10n.soundNone;

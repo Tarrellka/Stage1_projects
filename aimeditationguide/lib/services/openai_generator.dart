@@ -31,10 +31,10 @@ class OpenAIGenerator {
         final response = await http.post(url, headers: headers, body: body)
             .timeout(const Duration(seconds: 40));
 
-        // Если сервер перегружен (500, 502, 503, 504) или лимиты (429), пробуем еще раз
+
         if ((response.statusCode >= 500 || response.statusCode == 429) && attempt < maxRetries) {
           attempt++;
-          await Future.delayed(Duration(seconds: pow(2, attempt).toInt())); // 2, 4, 8 секунд
+          await Future.delayed(Duration(seconds: pow(2, attempt).toInt())); 
           continue;
         }
         return response;

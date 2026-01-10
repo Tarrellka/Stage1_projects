@@ -125,7 +125,7 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen> with 
                       _staticLayer(280 * sw, 0.15, activeColor),
                       _staticLayer(230 * sw, 0.3, activeColor),
                       _staticLayer(180 * sw, 1.0, activeColor),
-                      // Текст внутри круга (компенсируем масштаб, чтобы текст не прыгал сильно)
+                      // Текст внутри круга 
                       Transform.scale(
                         scale: 1 / _breathAnimation.value,
                         child: Text(
@@ -370,7 +370,7 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen> with 
   Widget _blurSpot(double w, double h, Color color, double opacity) => Container(width: w, height: h, decoration: BoxDecoration(shape: BoxShape.circle, boxShadow: [BoxShadow(color: color.withOpacity(opacity), blurRadius: 100, spreadRadius: 20)]));
 }
 
-// Рисует мишень для Mood Check-in
+
 class ArcherTargetPainter extends CustomPainter {
   final Color color;
   ArcherTargetPainter({required this.color});

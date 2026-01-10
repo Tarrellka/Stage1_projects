@@ -3,13 +3,12 @@ import '/l10n/app_localizations.dart';
 
 abstract class BasePracticeModel {
   final String titleKey;    
-  final int durationMin; // Изменил на int для удобства
+  final int durationMin; 
   final String imagePath;
   final Color color;
   final String mood;        
   final String backgroundSound;
 
-  // Геттеры для обратной совместимости (если где-то еще нужны строки)
   String get title => titleKey; 
   String get duration => durationMin.toString();
 
@@ -24,17 +23,17 @@ abstract class BasePracticeModel {
 
   // --- МЕТОДЫ ДЛЯ UI ---
 
-  // Вызываем как card.name(context)
+
   String name(BuildContext context) => getLocalizedTitle(context);
   
-  // Вызываем как card.durationText(context)
+
   String durationText(BuildContext context) => getLocalizedDuration(context);
 
   String getLocalizedTitle(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     if (l10n == null) return titleKey;
 
-    // Сверяем ключ из модели с ключами в ARB файле
+
     final map = {
       'calm_breath': l10n.calm_breath,
       'focus_breath': l10n.focus_breath,
@@ -51,10 +50,9 @@ abstract class BasePracticeModel {
     final l10n = AppLocalizations.of(context);
     if (l10n == null) return "$durationMin min";
 
-    // Форматируем число: если 5 -> "05", если 10 -> "10"
+
     String minutes = durationMin < 10 ? "0$durationMin" : "$durationMin";
-    
-    // Используем unit_min (МИН) из твоего файла
+
     return "$minutes ${l10n.unit_min}";
   }
 }

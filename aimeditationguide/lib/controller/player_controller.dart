@@ -18,7 +18,6 @@ class PlayerController extends ChangeNotifier {
     required int initialTotalSeconds,
   }) {
     _totalSeconds = initialTotalSeconds;
-    // Сохраняем системное имя для логики (например, 'Rain')
     _selectedSoundId = initialBackgroundSound.toLowerCase();
     _init();
   }
@@ -84,7 +83,7 @@ class PlayerController extends ChangeNotifier {
       return;
     }
     
-    // Логика выбора файла по системному ID
+
     String fileName = _selectedSoundId.contains('rain') ? 'rain.mp3' : 'nature.mp3';
     
     await _backgroundPlayer.setSource(AssetSource('audio/$fileName'));

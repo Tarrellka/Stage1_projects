@@ -75,7 +75,7 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
         return UniversalSelector(
           key: const ValueKey("duration"),
           title: l10n.duration,
-          items: const ["5 min", "10 min", "15 min"], // Можно оставить так или локализовать
+          items: const ["5 min", "10 min", "15 min"], 
           sw: sw,
           onBack: () => _logic.setView(GeneratorView.main),
           onSelect: _logic.updateDuration,

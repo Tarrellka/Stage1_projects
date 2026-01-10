@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart'; // Добавлено для связи с контроллером
+import 'package:provider/provider.dart'; 
 import '/l10n/app_localizations.dart'; 
 import '/controller/home_controller.dart';
-import '/controller/daily_routine_controller.dart'; // Добавлен контроллер рутины
+import '/controller/daily_routine_controller.dart'; 
 import '/screens/generator_screen.dart';
 import '/screens/breathing_screen.dart';
 import '/screens/daily_screen.dart';
@@ -62,7 +62,6 @@ class _HomeContentViewState extends State<HomeContentView> {
                 const SizedBox(height: 30),
                 _buildMainActions(context, sw, l10n),
                 const SizedBox(height: 40),
-                // ИСПРАВЛЕНО: Блок теперь зависит от реальных действий
                 _buildContinueSection(context, sw, sh, l10n),
                 const SizedBox(height: 40),
                 _buildSectionTitle(l10n.recommendedSessions, ""),
@@ -126,12 +125,12 @@ class _HomeContentViewState extends State<HomeContentView> {
     );
   }
 
-  // МЕТОД ПОЧИНЕН: Реально показывает последнее упражнение
+
   Widget _buildContinueSection(BuildContext context, double sw, double sh, AppLocalizations l10n) {
-    // Получаем данные из контроллера рутины, который следит за завершением сессий
+ 
     final routineController = Provider.of<DailyRoutineController>(context);
     
-    // Если пользователь еще ничего не завершил, не показываем блок вообще
+
     if (routineController.lastCompletedExercise == null) {
       return const SizedBox.shrink();
     }

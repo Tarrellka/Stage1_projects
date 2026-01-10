@@ -20,15 +20,29 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
     _logic = HistoryController();
-    _logic.addListener(() {
-      if (mounted) setState(() {});
+    
+
+    _logic.addListener(_onLogicUpdate);
+
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _logic.loadHistory();
+      }
     });
-    _logic.loadHistory();
+  }
+
+
+  void _onLogicUpdate() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+
+    _logic.removeListener(_onLogicUpdate);
     _tabController.dispose();
     _logic.dispose();
     super.dispose();
@@ -59,8 +73,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                     : TabBarView(
                         controller: _tabController,
                         children: [
-                          _buildHistoryList(sw, sh, _logic.meditationHistory, l10n.meditationHistoryEmpty, l10n),
-                          _buildHistoryList(sw, sh, [], l10n.breathingHistoryEmpty, l10n), // Сюда передайте _logic.breathingHistory когда будет готова
+                          _buildHistoryList(sw, sh, _logic.meditationHistory, l10n.meditationHistoryEmpty, l10n, true),
+                          _buildHistoryList(sw, sh, _logic.breathingHistory, l10n.breathingHistoryEmpty, l10n, false),
                         ],
                       ),
                 ),
@@ -123,7 +137,15 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         ),
         labelColor: Colors.white,
         unselectedLabelColor: Colors.black26,
-        labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 12 * sw),
+
+        labelStyle: GoogleFonts.inter(
+          fontWeight: FontWeight.w700, 
+          fontSize: 12 * sw,
+        ),
+        unselectedLabelStyle: GoogleFonts.inter(
+          fontWeight: FontWeight.w700, 
+          fontSize: 12 * sw,
+        ),
         tabs: [
           Tab(text: l10n.meditations.toUpperCase()),
           Tab(text: l10n.breathing.toUpperCase()),
@@ -132,7 +154,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildHistoryList(double sw, double sh, List history, String emptyText, AppLocalizations l10n) {
+  Widget _buildHistoryList(double sw, double sh, List history, String emptyText, AppLocalizations l10n, bool isMeditation) {
     if (history.isEmpty) {
       return Center(
         child: Column(
@@ -158,15 +180,20 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       padding: EdgeInsets.symmetric(horizontal: 20 * sw, vertical: 20 * sh),
       itemCount: history.length,
       itemBuilder: (context, index) {
-        return _buildHistoryCard(sw, sh, history[index], index, l10n);
+        return _buildHistoryCard(sw, sh, history[index], index, l10n, isMeditation);
       },
     );
   }
 
-  Widget _buildHistoryCard(double sw, double sh, Map<String, dynamic> item, int index, AppLocalizations l10n) {
-    // Используем текущую локаль для форматирования даты
+  Widget _buildHistoryCard(double sw, double sh, Map<String, dynamic> item, int index, AppLocalizations l10n, bool isMeditation) {
     final String locale = Localizations.localeOf(context).languageCode;
-    DateTime date = DateTime.parse(item['date'] ?? DateTime.now().toIso8601String());
+    
+    DateTime date;
+    try {
+      date = DateTime.parse(item['date']);
+    } catch (_) {
+      date = DateTime.now();
+    }
     String formattedDate = DateFormat('dd MMM, HH:mm', locale).format(date);
 
     return Container(
@@ -187,18 +214,15 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: Image.network(
-              item['image'] ?? '',
-              width: 80 * sw,
-              height: 80 * sh,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 80 * sw,
-                height: 80 * sh,
-                color: Colors.grey[100],
-                child: const Icon(Icons.image_outlined, color: Colors.grey),
-              ),
-            ),
+            child: (item['imageUrl'] != null || item['image'] != null) 
+              ? Image.network(
+                  item['imageUrl'] ?? item['image'],
+                  width: 80 * sw,
+                  height: 80 * sh,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _buildPlaceholder(sw, sh),
+                )
+              : _buildPlaceholder(sw, sh),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -206,7 +230,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  (item['title'] ?? l10n.meditation).toString().toUpperCase(),
+                  (item['title'] ?? (isMeditation ? l10n.meditation : l10n.breathing)).toString().toUpperCase(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
@@ -241,7 +265,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
             ),
           ),
           IconButton(
-            onPressed: () => _logic.deleteItem(index),
+            onPressed: () => _logic.deleteItem(index, isMeditation),
             icon: const Icon(Icons.delete_outline, color: Color(0xFFFFB2B2)),
           ),
         ],
@@ -249,7 +273,15 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     );
   }
 
-  // Фон и размытие
+  Widget _buildPlaceholder(double sw, double sh) {
+    return Container(
+      width: 80 * sw,
+      height: 80 * sh,
+      color: Colors.grey[100],
+      child: const Icon(Icons.spa_outlined, color: Colors.grey),
+    );
+  }
+
   Widget _buildBackgroundBlur(double sw, double sh) {
     return Stack(
       children: [

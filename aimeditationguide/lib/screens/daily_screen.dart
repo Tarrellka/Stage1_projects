@@ -83,7 +83,7 @@ class _DailyRoutineScreenState extends State<DailyRoutineScreen> {
             errorBuilder: (c, e, s) => Icon(Icons.auto_awesome, size: 100 * sh, color: Colors.green[200])),
           const Spacer(),
           Text(
-            l10n.routineWelcomeMessage, // Локализованное приветствие
+            l10n.routineWelcomeMessage,
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(fontSize: 16 * sw, fontWeight: FontWeight.w500, height: 1.5, color: Colors.black),
           ),
@@ -96,7 +96,7 @@ class _DailyRoutineScreenState extends State<DailyRoutineScreen> {
   }
 
   Widget _buildRoutineList(double sw, double sh, AppLocalizations l10n) {
-    // Массив заголовков для временных слотов
+
     final List<String> slots = [
       l10n.morningPractice,
       l10n.afternoonPractice,
@@ -179,7 +179,7 @@ class _DailyRoutineScreenState extends State<DailyRoutineScreen> {
                     Text(timeSlot, style: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 12 * sw, color: Colors.black38)),
                     Text(model.getLocalizedTitle(context), style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 16 * sw, color: Colors.black)),
                     Text(
-                      model.mood, // Можно добавить маппинг mood -> перевод если нужно
+                      model.mood, 
                       style: GoogleFonts.inter(fontSize: 11 * sw, fontWeight: FontWeight.w600, color: model.color)
                     ),
                   ],
@@ -193,7 +193,7 @@ class _DailyRoutineScreenState extends State<DailyRoutineScreen> {
     );
   }
 
-  // Метод кнопки адаптирован под визуальный стиль
+
   Widget _buildActionButton(String text, VoidCallback onTap, double sw, double sh, {bool active = false}) {
     return GestureDetector(
       onTap: active ? onTap : null,

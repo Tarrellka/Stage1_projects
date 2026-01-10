@@ -1,9 +1,9 @@
-import 'package:aimeditationguide/screens/paywall_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Добавлено
+import 'package:shared_preferences/shared_preferences.dart';
 import 'onboarding_screen.dart';
-import 'home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'paywall_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -34,22 +34,31 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       if (status == AnimationStatus.completed) {
         Future.delayed(const Duration(seconds: 1), () {
           if (mounted) {
-            _checkFirstRunAndNavigate(); // Вызов новой логики перехода
+            _checkFirstRunAndNavigate();
           }
         });
       }
     });
   }
 
-  // НОВАЯ ЛОГИКА ПРОВЕРКИ
   Future<void> _checkFirstRunAndNavigate() async {
+    // 1. Инициализируем настройки
     final prefs = await SharedPreferences.getInstance();
     final bool isFirstRun = prefs.getBool('isFirstRun') ?? true;
+
+    // 2. ФОНОВАЯ ЗАГРУЗКА: Пока идет сплэш, подгружаем историю из Firebase
+    try {
+      if (FirebaseAuth.instance.currentUser == null) {
+        await FirebaseAuth.instance.signInAnonymously();
+        print("Успешный анонимный вход: ${FirebaseAuth.instance.currentUser?.uid}");
+      }
+    } catch (e) {
+      print("Ошибка входа: $e");
+    }
 
     Widget nextScreen;
     if (isFirstRun) {
       nextScreen = const OnboardingScreen();
-      // Помечаем, что первый запуск прошел, чтобы в следующий раз открыть Home
       await prefs.setBool('isFirstRun', false);
     } else {
       nextScreen = const PaywallScreen();
@@ -57,14 +66,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     if (!mounted) return;
 
+    // Плавный переход
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
+          return FadeTransition(opacity: animation, child: child);
         },
         transitionDuration: const Duration(milliseconds: 800),
       ),
@@ -77,7 +84,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
-  // --- Остальной ваш UI код (build, _buildBackgroundMesh и т.д.) остается без изменений ---
   @override
   Widget build(BuildContext context) {
     const double shadowVerticalOffset = 30.0; 
@@ -136,6 +142,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
   }
 
+  // --- Вспомогательные виджеты интерфейса ---
+  
   Widget _buildFigmaShadows(double globalOpacity) {
     return Stack(
       alignment: Alignment.center,

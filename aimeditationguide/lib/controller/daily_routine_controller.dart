@@ -10,7 +10,7 @@ class DailyRoutineController extends ChangeNotifier {
   int currentExerciseIndex = 0;
   List<bool> completedStatuses = [false, false, false];
 
-  // ДОБАВЛЕНО: Поле для хранения последнего выполненного упражнения
+
   BasePracticeModel? lastCompletedExercise;
 
   static const String _defaultSoundId = "nature"; 
@@ -24,7 +24,7 @@ class DailyRoutineController extends ChangeNotifier {
   }
 
   Future<void> runExercise(BuildContext context, int index) async {
-    // Если index == -1, значит мы запускаем "последнее упражнение" с главного экрана
+
     final selectedModel = index == -1 ? lastCompletedExercise : recommendedCards[index];
     
     if (selectedModel == null) return;
@@ -55,7 +55,6 @@ class DailyRoutineController extends ChangeNotifier {
     }
 
     if (isFinished == true) {
-      // СОХРАНЯЕМ: Теперь getter в HomeContentView найдет это поле
       lastCompletedExercise = selectedModel;
       
       if (index != -1) {

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '/l10n/app_localizations.dart';
 
 class BackgroundSound {
-  final String id;        // Системный ID (не меняется)
-  final String path;      // Путь к файлу
-  final String imagePath; // Путь к иконке
+  final String id;      
+  final String path;    
+  final String imagePath; 
 
   BackgroundSound({
     required this.id,
@@ -12,7 +12,7 @@ class BackgroundSound {
     required this.imagePath,
   });
 
-  // Метод для получения переведенного названия
+
   String getName(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     switch (id) {
@@ -25,7 +25,7 @@ class BackgroundSound {
   }
 }
 
-// Список звуков теперь использует константные ID
+
 final List<BackgroundSound> backgroundSounds = [
   BackgroundSound(id: "none", path: "", imagePath: "none.png"),
   BackgroundSound(id: "nature", path: "nature.mp3", imagePath: "nature.png"),

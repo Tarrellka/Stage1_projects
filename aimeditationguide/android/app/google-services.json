@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "610102490806",
+    "project_id": "aimeditationguide-d8e00",
+    "storage_bucket": "aimeditationguide-d8e00.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:610102490806:android:95e2bc7a47f4235eacd817",
+        "android_client_info": {
+          "package_name": "com.example.aimeditationguide"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwVqSvYwK40MuN67jXWAkknHiyelZk1IY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

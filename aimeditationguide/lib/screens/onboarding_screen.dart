@@ -41,7 +41,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final double imgWidth = (screenSize.width * 0.75).clamp(200.0, 300.0);
     final double containerHeight = imgWidth * 0.85;
 
-    // Формируем данные здесь, чтобы l10n был доступен
+
     final List<Map<String, dynamic>> onboardingData = [
       {
         "image": "assets/images/onb1.png",

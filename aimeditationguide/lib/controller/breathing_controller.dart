@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/breathing_card_model.dart';
 import '/l10n/app_localizations.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 enum BreathingView { main, moodSelection, durationSelection, active, finished }
 
@@ -11,7 +13,7 @@ class BreathingController extends ChangeNotifier {
   String? selectedDuration;
   late AnimationController animationController;
   
-  Timer? _sessionTimer; // Таймер для автоматического завершения
+  Timer? _sessionTimer;
 
   void init(TickerProvider vsync, BasePracticeModel? initialCard) {
     animationController = AnimationController(
@@ -21,15 +23,14 @@ class BreathingController extends ChangeNotifier {
 
     if (initialCard != null) {
       selectedMood = initialCard.mood;
-      // Устанавливаем длительность из модели (например, "5 min")
+
       selectedDuration = "${initialCard.durationMin} min"; 
     }
   }
 
-  // Вспомогательный метод для извлечения числа минут из строки "5 min"
+
   int _getDurationMinutes() {
     if (selectedDuration == null) return 1;
-    // Берем первую часть строки до пробела и превращаем в число
     return int.tryParse(selectedDuration!.split(' ')[0]) ?? 1;
   }
 
@@ -72,7 +73,7 @@ class BreathingController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ОСТАНОВКА ПОЛЬЗОВАТЕЛЕМ (кнопка "назад" или "закрыть")
+  // ОСТАНОВКА ПОЛЬЗОВАТЕЛЕМ 
   void stopSession() {
     _sessionTimer?.cancel();
     animationController.stop();
@@ -81,14 +82,35 @@ class BreathingController extends ChangeNotifier {
   }
 
   // АВТОМАТИЧЕСКОЕ ЗАВЕРШЕНИЕ ПО ВРЕМЕНИ
-  void finishSession() {
+  Future<void> finishSession() async {
     _sessionTimer?.cancel();
     animationController.stop();
     currentView = BreathingView.finished;
+    
+    // СОХРАНЕНИЕ В FIREBASE
+    await _saveToFirebase();
+    
     notifyListeners();
   }
 
-  // Получение текста для UI (Вдох / Выдох)
+  Future<void> _saveToFirebase() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('meditation_history').add({
+        'userId': user.uid,
+        'type': 'breathing',
+        'title': selectedMood ?? 'Breathing Practice',
+        'duration': selectedDuration,
+        'date': FieldValue.serverTimestamp(),
+        'mood': selectedMood,
+      });
+    } catch (e) {
+      debugPrint("Error saving breathing session: $e");
+    }
+  }
+
   String getBreathingStatus(AppLocalizations l10n) {
     if (currentView != BreathingView.active) return "";
     
